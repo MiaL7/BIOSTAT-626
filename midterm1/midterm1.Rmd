@@ -1,0 +1,158 @@
+---
+title: "midterm1"
+author: "Ximiao Li"
+date: "2023-03-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(caret)
+library(mlbench)
+library(Hmisc)
+library(randomForest)
+library(xgboost)
+```
+
+# test set
+```{r}
+test <- read.table("test_data.txt", header = T)
+test
+```
+
+# train set
+
+```{r}
+dat <- read.table("training_data.txt", header = T)
+head(dat)
+```
+
+```{r}
+feature <- dat[,-1:-2]
+head(feature)
+```
+
+```{r}
+dim(dat)
+```
+
+```{r}
+label <- dat[,2]
+head(label)
+```
+
+```{r}
+which(apply(dat, 2, is.na) == TRUE)
+```
+
+# Binary
+## feature selection
+
+```{r}
+# subsets <- c(500, 400, 300, 200, 100, 50)
+# filterCtrl <- rfeControl(functions=rfFuncs, method="cv", number=3)
+# results <- rfe(x= feature,y= label, sizes=subsets, rfeControl=filterCtrl)
+# results
+```
+
+```{r}
+set.seed(123)
+rf <- randomForest(activity~., data = dat[,-1])
+rf
+```
+
+```{r}
+imp_feature <- data.frame(importance(rf))
+# imp_feature <- importance(rf)
+feat_sel <- imp_feature %>% arrange(desc(IncNodePurity)) %>%
+              filter(IncNodePurity > 10) %>%
+              rownames()
+```
+
+```{r}
+length(feat_sel)
+```
+
+```{r}
+dat$biact <- 1*(dat$activity<4)
+```
+
+
+```{r}
+dat_sel <- dat[, c("activity", "biact", feat_sel)]
+dat_sel
+```
+## use selected features
+```{r}
+set.seed(123)
+model <- xgboost(data = as.matrix(dat_sel[,-1:-2]), label = dat$biact, max_depth = 20, nthread = 2, nrounds = 50, objective = "binary:logistic")
+```
+
+```{r}
+res <- 1*(predict(model, as.matrix(dat_sel[, -1:-2])) > 0.5)
+sum(res - dat_sel$biact)
+```
+
+##use all features
+```{r}
+set.seed(123)
+model <- xgboost(data = as.matrix(dat[,-c(1,2,564)]), label = dat$biact, max_depth = 20, nthread = 2, nrounds = 50, objective = "binary:logistic")
+
+pred_bin <- 1*(predict(model, as.matrix(dat[, -c(1,2,564)]))>0.5)
+confusionMatrix(factor(pred_bin), factor(dat$binact))
+```
+
+## output predictions
+
+```{r}
+output <- 1*(predict(model, as.matrix(test[, -1]))>0.5)
+```
+
+```{r}
+write.table(output, file = "binary_6784.txt", row.names = F, col.names = F)
+```
+
+
+# multiclass
+
+```{r}
+dat$multi <- dat$activity
+dat$multi[dat$multi>6] <- 7
+```
+
+##use all 
+```{r}
+set.seed(123)
+model_multi <- xgboost(data = as.matrix(dat[,-c(1,2,564,565)]), label = (dat$multi-1), num_class = 7, max_depth = 20, nthread = 2, nrounds = 100, objective = "multi:softmax")
+model_multi
+```
+
+```{r}
+pred_multi <- predict(model_multi, as.matrix(dat[, -c(1,2,564,565)]))
+confusionMatrix(factor(pred_multi+1), factor(dat$multi))
+```
+
+## output predictions
+
+```{r}
+output_multi <- predict(model_multi, as.matrix(test[, -1]))+1
+```
+
+```{r}
+write.table(output_multi, file = "multiclass_6784.txt", row.names = F, col.names = F)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
