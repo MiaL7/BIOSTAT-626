@@ -1,0 +1,2 @@
+# BIOSTAT-626
+UMICH course BIOSTAT-626.
