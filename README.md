@@ -1,5 +1,4 @@
-# BIOSTAT-626 
-# Midterm 1
+# BIOSTAT-626 Midterm 1
 Classification tasks for activity types using movement signals as features.
 
 ## Task Specification
