@@ -1,7 +1,7 @@
 # BIOSTAT-626
 Classification tasks for activity types using movement signals as features.
 
-## Task Specification: 
+## Task Specification
 
 https://github.com/xqwen/bios626/blob/main/README.md
 
