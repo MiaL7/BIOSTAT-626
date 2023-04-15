@@ -51,9 +51,10 @@ Check your RStudio equipped with following packages:
 2. Copy the datafiles ```training_data.txt``` and ```test_data.txt``` to the same address as the ```midterm1.Rmd``` file.
 
 ## Usage
-Run the code in ```midterm1.Rmd``` step by step. 
+1. Download ```midterm1.Rmd```.
+2. Again, make sure data files are in the same directory as ```midterm1.Rmd```.
+3. Run the code in ```midterm1.Rmd``` step by step. 
 
-The binary classification result for task 1 would be output as ```binary_6784.txt```, and ```multiclass_6784.txt``` for multiclass classification in task 2.
 
 ## Performance
 Through optimization, 100% accuracy for Task 1 and 95.5% for Task 2 have been reached according to the leaderboard,
