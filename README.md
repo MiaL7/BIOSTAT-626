@@ -30,8 +30,8 @@ https://github.com/xqwen/bios626/blob/main/README.md
 
 
 ## Built With
-- R
-- RStudio
+- R 4.2.2
+- RStudio 2023.03.0+386 "Cherry Blossom" Release (3c53477afb13ab959aeb5b34df1f10c237b256c3, 2023-03-09) for Windows
 
 ## Getting Started
 Here are a few tips on how to run the project.
