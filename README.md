@@ -19,7 +19,7 @@ https://github.com/xqwen/bios626/blob/main/README.md
 >## Data files 
 >
 >Two tab-delimited text files ```training_data.txt``` and ```test_data.txt``` are provided. The training data (labeled activity information included) should be used to construct and test your ML algorithms. Apply your algorithm to the test data (containing only feature information) and predict the activity corresponding to each time window.
->
+>https://github.com/xqwen/bios626/tree/main/data
 >
 >
 >
