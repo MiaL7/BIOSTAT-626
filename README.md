@@ -42,6 +42,8 @@ Check your RStudio equipped with following packages:
 - caret
 - randomForest
 - xgboost
+- ggplot2
+- ggforce
 
 ### Data Preparatiomn
 Copy the datafiles ```training_data.txt``` and ```test_data.txt``` to the same address as the ```midterm1.Rmd``` file.
