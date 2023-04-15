@@ -46,8 +46,9 @@ Check your RStudio equipped with following packages:
 - ggplot2
 - ggforce
 
-### Data Preparatiomn
-Copy the datafiles ```training_data.txt``` and ```test_data.txt``` to the same address as the ```midterm1.Rmd``` file.
+### Data Preparation
+1. Download data files from links above.
+2. Copy the datafiles ```training_data.txt``` and ```test_data.txt``` to the same address as the ```midterm1.Rmd``` file.
 
 ## Usage
 Process the code in ```midterm1.Rmd``` step by step to get results. 
