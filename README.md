@@ -1,5 +1,5 @@
 # BIOSTAT-626 Midterm 1
-Classification tasks for activity types using movement signals as features.
+Machine learning prediction model on human activity recognition using wearable sensor technology data
 
 ## Task Specification
 
