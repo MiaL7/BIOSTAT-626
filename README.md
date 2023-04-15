@@ -51,6 +51,6 @@ Check your RStudio equipped with following packages:
 2. Copy the datafiles ```training_data.txt``` and ```test_data.txt``` to the same address as the ```midterm1.Rmd``` file.
 
 ## Usage
-Process the code in ```midterm1.Rmd``` step by step to get results. 
+Run the code in ```midterm1.Rmd``` step by step. 
 
 The binary classification result for task 1 would be output as ```binary_6784.txt```, and ```multiclass_6784.txt``` for multiclass classification in task 2.
