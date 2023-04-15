@@ -28,4 +28,6 @@ https://github.com/xqwen/bios626/blob/main/README.md
 >1. Build a binary classifier to classify the activity of each time window into static (0) and dynamic (1).
 >2. Build a refined multi-class classifier to classify walking (1), walking_upstairs (2), walking_downstairs (3), sitting (4), standing (5), lying (6), and static postural transition (7)
 
----------------------------------------------------------------
+
+## Built With
+* [![Rstudio][RStudio.com]][Rstudio-url]
