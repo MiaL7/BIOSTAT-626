@@ -14,6 +14,8 @@ library(mlbench)
 library(Hmisc)
 library(randomForest)
 library(xgboost)
+library(ggplot2)
+library(ggforce)
 ```
 
 # test set
@@ -30,8 +32,10 @@ head(dat)
 ```
 
 ```{r}
-feature <- dat[,-1:-2]
-head(feature)
+dat$biact <- 1*(dat$activity<4)
+dat$multi <- dat$activity
+dat$multi[dat$multi>6] <- 7
+dat$id <- 1:nrow(dat)
 ```
 
 ```{r}
@@ -39,15 +43,17 @@ dim(dat)
 ```
 
 ```{r}
-label <- dat[,2]
-head(label)
-```
-
-```{r}
 which(apply(dat, 2, is.na) == TRUE)
 ```
 
-# Binary
+## Partition
+```{r}
+Train <- createDataPartition(dat$subject, times=1, p=.8, list=FALSE)
+dat_train <- dat[Train, ]
+dat_test <- dat[-Train, ]
+```
+
+
 ## feature selection
 
 ```{r}
@@ -59,7 +65,7 @@ which(apply(dat, 2, is.na) == TRUE)
 
 ```{r}
 set.seed(123)
-rf <- randomForest(activity~., data = dat[,-1])
+rf <- randomForest(activity~., data = dat[,-c(1,564,565,566)])
 rf
 ```
 
@@ -76,72 +82,450 @@ length(feat_sel)
 ```
 
 ```{r}
-dat$biact <- 1*(dat$activity<4)
+dat_sel <- dat[, c("activity", "biact","multi", feat_sel)]
+sel_Train <- createDataPartition(dat_sel$activity, times=1, p=.8, list=FALSE)
+dat_sel_train <- dat_sel[Train, ]
+dat_sel_test <- dat_sel[-Train, ]
 ```
-
-
-```{r}
-dat_sel <- dat[, c("activity", "biact", feat_sel)]
-dat_sel
-```
+# Binary
 ## use selected features
 ```{r}
 set.seed(123)
-model <- xgboost(data = as.matrix(dat_sel[,-1:-2]), label = dat$biact, max_depth = 20, nthread = 2, nrounds = 50, objective = "binary:logistic")
+model_sel_bin <- xgboost(data = as.matrix(dat_sel_train[,-c(1,2,3)]), 
+                         label = dat_sel_train$biact, 
+                         nrounds = 30, 
+                         objective = "binary:logistic",
+                         verbose = 0)
 ```
 
 ```{r}
-res <- 1*(predict(model, as.matrix(dat_sel[, -1:-2])) > 0.5)
-sum(res - dat_sel$biact)
+pred_sel_bin <- 1*(predict(model_sel_bin, as.matrix(dat_sel_test[, -c(1,2,3)])) > 0.5)
+confusionMatrix(factor(pred_sel_bin), factor(dat_sel_test$biact))
 ```
 
-##use all features
+## use all features
+### baseline algorithm:
 ```{r}
 set.seed(123)
-model <- xgboost(data = as.matrix(dat[,-c(1,2,564)]), label = dat$biact, max_depth = 20, nthread = 2, nrounds = 50, objective = "binary:logistic")
+model_base_bin <- xgboost(data = as.matrix(dat_train[,-c(1,2,564,565,566)]), 
+                          label = dat_train$biact, 
+                          nrounds = 30, 
+                          objective = "binary:logistic",
+                          verbose = 0)
+```
 
-pred_bin <- 1*(predict(model, as.matrix(dat[, -c(1,2,564)]))>0.5)
-confusionMatrix(factor(pred_bin), factor(dat$binact))
+```{r}
+pred_base_bin <- 1*(predict(model_base_bin, as.matrix(dat_test[, -c(1,2,564,565,566)]))>0.5)
+confusionMatrix(factor(pred_base_bin), factor(dat_test$biact))
+```
+
+#### plot1
+```{r}
+loss.bin.sel.base <- model_sel_bin$evaluation_log
+loss.bin.sel.base$feature_type <- factor('selected')
+loss.bin.all.base <- model_base_bin$evaluation_log
+loss.bin.all.base$feature_type <- factor('all')
+loss1 <- rbind(loss.bin.sel.base, loss.bin.all.base)
+```
+
+```{r}
+ggplot(loss1, aes(x = iter, y = train_logloss, group = feature_type)) +
+  geom_line(aes(color = feature_type)) +
+  geom_point(aes(color = feature_type)) +
+  labs(title = "Logloss for binary classification with baseline model") +
+  theme_minimal()
+```
+
+
+### Final algorithm
+```{r}
+set.seed(123)
+model_bin <- xgboost(data = as.matrix(dat_train[,-c(1,2,564,565,566)]), 
+                     label = dat_train$biact, 
+                     max_depth = 10, 
+                     nrounds = 50, 
+                     objective = "binary:logistic",
+                     verbose = 0)
+
+pred_bin <- 1*(predict(model_bin, as.matrix(dat_test[, -c(1,2,564,565,566)]))>0.5)
+confusionMatrix(factor(pred_bin), factor(dat_test$biact))
+```
+
+#### plot2
+```{r}
+loss.bin.all.final <- model_bin$evaluation_log
+loss.bin.all.final$model_type <- factor('final')
+loss.bin.all.base <- model_base_bin$evaluation_log
+loss.bin.all.base$model_type <- factor('baseline')
+loss2 <- rbind(loss.bin.all.final,loss.bin.all.base)
+```
+
+```{r}
+ggplot(loss2, aes(x = iter, y = train_logloss, group = model_type)) +
+  geom_line(aes(color = model_type)) +
+  geom_point(aes(color = model_type)) +
+  labs(title = "Logloss for binary classification") +
+  theme_minimal()
 ```
 
 ## output predictions
 
 ```{r}
-output <- 1*(predict(model, as.matrix(test[, -1]))>0.5)
+output_bin <- 1*(predict(model_bin, as.matrix(test[, -1]))>0.5)
 ```
 
 ```{r}
-write.table(output, file = "binary_6784.txt", row.names = F, col.names = F)
+# Read in previous predictions
+# pred1 <- read.table("binary_1.txt")
 ```
 
+```{r}
+# Compare with previous results
+# which((as.integer(pred1$V1)-as.integer(output_bin))!=0)
+```
+
+```{r}
+write.table(output_bin, file = "binary_6784.txt", row.names = F, col.names = F)
+```
 
 # multiclass
 
-```{r}
-dat$multi <- dat$activity
-dat$multi[dat$multi>6] <- 7
-```
-
-##use all 
+## Baseline model
+### No split by activity type
 ```{r}
 set.seed(123)
-model_multi <- xgboost(data = as.matrix(dat[,-c(1,2,564,565)]), label = (dat$multi-1), num_class = 7, max_depth = 20, nthread = 2, nrounds = 100, objective = "multi:softmax")
-model_multi
+model_base_multi <- xgboost(data = as.matrix(dat_train[,-c(1,2,564,565,566)]), 
+                       label = (dat_train$multi-1), 
+                       num_class = 7, 
+                       nrounds = 100,
+                       objective = "multi:softmax",
+                       verbose = 0)
 ```
 
 ```{r}
-pred_multi <- predict(model_multi, as.matrix(dat[, -c(1,2,564,565)]))
-confusionMatrix(factor(pred_multi+1), factor(dat$multi))
+pred_base_multi <- predict(model_base_multi, as.matrix(dat_test[, -c(1,2,564,565,566)]))
+confusionMatrix(factor(pred_base_multi+1), factor(dat_test$multi))
 ```
+
+### Split by activity type
+```{r}
+set.seed(123)
+model_base_multi_static <- xgboost(data = as.matrix(dat_train[dat_train$biact==0,-c(1,2,564,565,566)]), 
+                       label = (dat_train[dat_train$biact==0,]$multi-4), 
+                       num_class = 4, 
+                       nrounds = 100,
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+set.seed(123)
+model_base_multi_dynamic <- xgboost(data = as.matrix(dat_train[dat_train$biact==1,-c(1,2,564,565,566)]), 
+                       label = (dat_train[dat_train$biact==1,]$multi-1), 
+                       num_class = 3, 
+                       nrounds = 100, 
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+pred_base_multi_static <- predict(model_base_multi_static, as.matrix(dat_test[dat_test$biact==0, -c(1,2,564,565,566)]))
+confusionMatrix(factor(pred_base_multi_static+4), factor(dat_test[dat_test$biact==0,]$multi))
+```
+
+```{r}
+pred_base_multi_dynamic <- predict(model_base_multi_dynamic, as.matrix(dat_test[dat_test$biact==1, -c(1,2,564,565,566)]))
+confusionMatrix(factor(pred_base_multi_dynamic+1), factor(dat_test[dat_test$biact==1,]$multi))
+```
+
+## Final algorithm
+### No split by activity type
+#### use selected features
+```{r}
+set.seed(123)
+model_sel_multi <- xgboost(data = as.matrix(dat_sel_train[,-c(1,2,3)]), 
+                       label = (dat_sel_train$multi-1), 
+                       num_class = 7, 
+                       max_depth = 10, 
+                       nrounds = 1000,
+                       eta = 0.1, 
+                       subsample = 0.5, 
+                       lambda = 3,
+                       # process_type = "update", 
+                       # updater = "prune", 
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+pred_sel_multi <- predict(model_sel_multi, as.matrix(dat_sel_test[, -c(1,2,3)]))
+confusionMatrix(factor(pred_sel_multi+1), factor(dat_sel_test$multi))
+```
+
+#### use all features
+```{r}
+# Acc = 0.95
+set.seed(123)
+model_multi <- xgboost(data = as.matrix(dat_train[,-c(1,2,564,565,566)]), 
+                       label = (dat_train$multi-1), 
+                       num_class = 7, 
+                       max_depth = 10, 
+                       nrounds = 1000,
+                       eta = 0.1, 
+                       subsample = 0.5, 
+                       lambda = 3,
+                       # process_type = "update", 
+                       # updater = "prune", 
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+pred_multi <- predict(model_multi, as.matrix(dat_test[, -c(1,2,564,565,566)]))
+confusionMatrix(factor(pred_multi+1), factor(dat_test$multi))
+```
+
+#### plot3
+```{r}
+loss.mul.base <- model_base_multi$evaluation_log
+loss.mul.base$model_type <- factor('baseline')
+loss.mul.final.sel <- model_sel_multi$evaluation_log
+loss.mul.final.sel$model_type <- factor('final+selected')
+loss.mul.final.all <- model_multi$evaluation_log
+loss.mul.final.all$model_type <- factor('final+all')
+loss3 <- rbind(loss.mul.base,loss.mul.final.sel,loss.mul.final.all)
+```
+
+```{r}
+ggplot(loss3, aes(x = iter, y = train_mlogloss, group = model_type)) +
+  geom_line(aes(color = model_type)) +
+  geom_point(aes(color = model_type)) +
+  labs(title = "mLogloss for multiclass classification") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(loss3, aes(x = iter, y = train_mlogloss, group = model_type)) +
+  geom_line(aes(color = model_type)) +
+  geom_point(aes(color = model_type)) +
+  labs(title = "mLogloss for multiclass classification (zoomed)") +
+  theme_minimal() +
+  facet_zoom(y = train_mlogloss < .5, x = iter < 100)
+```
+
+### Split by activity type
+#### use selected features
+```{r}
+set.seed(123)
+model_sel_multi_static <- xgboost(data = as.matrix(dat_sel_train[dat_sel_train$biact==0,-c(1,2,3)]), 
+                       label = (dat_sel_train[dat_sel_train$biact==0,]$multi-4), 
+                       num_class = 4, 
+                       max_depth = 6, 
+                       nrounds = 1000,
+                       eta = 0.1, 
+                       subsample = 0.5, 
+                       lambda = 3,
+                       # process_type = "update", 
+                       # updater = "prune", 
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+set.seed(123)
+model_sel_multi_dynamic <- xgboost(data = as.matrix(dat_sel_train[dat_sel_train$biact==1,-c(1,2,3)]), 
+                       label = (dat_sel_train[dat_sel_train$biact==1,]$multi-1), 
+                       num_class = 3, 
+                       max_depth = 10, 
+                       nrounds = 1000,
+                       eta = 0.1, 
+                       subsample = 0.5, 
+                       lambda = 3,
+                       # process_type = "update", 
+                       # updater = "prune", 
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+pred_sel_multi_static <- predict(model_sel_multi_static, as.matrix(dat_sel_test[dat_sel_test$biact==0, -c(1,2,3)]))
+confusionMatrix(factor(pred_sel_multi_static+4), factor(dat_sel_test[dat_sel_test$biact==0,]$multi))
+```
+
+```{r}
+pred_sel_multi_dynamic <- predict(model_sel_multi_dynamic, as.matrix(dat_sel_test[dat_sel_test$biact==1, -c(1,2,3)]))
+confusionMatrix(factor(pred_sel_multi_dynamic+1), factor(dat_sel_test[dat_sel_test$biact==1,]$multi))
+```
+
+#### use all features
+```{r}
+# Acc = 0.955
+set.seed(123)
+model_multi_static <- xgboost(data = as.matrix(dat_train[dat_train$biact==0,-c(1,2,564,565,566)]), 
+                       label = (dat_train[dat_train$biact==0,]$multi-4), 
+                       num_class = 4, 
+                       max_depth = 6, 
+                       nrounds = 1000,
+                       eta = 0.1, 
+                       subsample = 0.5, 
+                       lambda = 3,
+                       # process_type = "update", 
+                       # updater = "prune", 
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+set.seed(123)
+model_multi_dynamic <- xgboost(data = as.matrix(dat_train[dat_train$biact==1,-c(1,2,564,565,566)]), 
+                       label = (dat_train[dat_train$biact==1,]$multi-1), 
+                       num_class = 3, 
+                       max_depth = 10, 
+                       nrounds = 1000,
+                       eta = 0.1, 
+                       subsample = 0.5, 
+                       lambda = 3,
+                       # process_type = "update", 
+                       # updater = "prune", 
+                       objective = "multi:softmax",
+                       verbose = 0)
+```
+
+```{r}
+pred_multi_static <- predict(model_multi_static, as.matrix(dat_test[dat_test$biact==0, -c(1,2,564,565,566)]))
+confusionMatrix(factor(pred_multi_static+4), factor(dat_test[dat_test$biact==0,]$multi))
+```
+
+```{r}
+pred_multi_dynamic <- predict(model_multi_dynamic, as.matrix(dat_test[dat_test$biact==1, -c(1,2,564,565,566)]))
+confusionMatrix(factor(pred_multi_dynamic+1), factor(dat_test[dat_test$biact==1,]$multi))
+```
+
+#### plot4
+```{r}
+loss.mul.static.base <- model_base_multi_static$evaluation_log
+loss.mul.static.base$model_type <- factor('baseline')
+loss.mul.static.base$activity_type <- factor('static')
+
+loss.mul.static.sel <- model_sel_multi_static$evaluation_log
+loss.mul.static.sel$model_type <- factor('final+selected')
+loss.mul.static.sel$activity_type <- factor('static')
+
+loss.mul.static.all <- model_multi_static$evaluation_log
+loss.mul.static.all$model_type <- factor('final+all')
+loss.mul.static.all$activity_type <- factor('static')
+
+
+loss.mul.dynamic.base <- model_base_multi_dynamic$evaluation_log
+loss.mul.dynamic.base$model_type <- factor('baseline')
+loss.mul.dynamic.base$activity_type <- factor('dynamic')
+
+loss.mul.dynamic.sel <- model_sel_multi_dynamic$evaluation_log
+loss.mul.dynamic.sel$model_type <- factor('final+selected')
+loss.mul.dynamic.sel$activity_type <- factor('dynamic')
+
+loss.mul.dynamic.all <- model_multi_dynamic$evaluation_log
+loss.mul.dynamic.all$model_type <- factor('final+all')
+loss.mul.dynamic.all$activity_type <- factor('dynamic')
+
+
+loss4 <- rbind(loss.mul.static.base,loss.mul.static.sel,loss.mul.static.all,loss.mul.dynamic.base,loss.mul.dynamic.sel,loss.mul.dynamic.all)
+```
+
+```{r}
+ggplot(loss4, aes(x = iter, y = train_mlogloss, group = interaction(model_type, activity_type))) +
+  geom_line(aes(color = model_type)) +
+  geom_point(aes(color = model_type, shape = activity_type)) +
+  labs(title = "mLogloss for multiclass classification with data split") +
+  theme_minimal() 
+  # facet_zoom(y = train_mlogloss < 0.25, x = iter < 100)
+```
+
+```{r}
+ggplot(loss4, aes(x = iter, y = train_mlogloss, group = interaction(model_type, activity_type))) +
+  geom_line(aes(color = model_type)) +
+  geom_point(aes(color = model_type, shape = activity_type)) +
+  labs(title = "mLogloss for multiclass classification with data split (zoomed)") +
+  theme_minimal() +
+  facet_zoom(y = train_mlogloss < 0.25, x = iter < 100)
+```
+
 
 ## output predictions
-
+### use selected features
 ```{r}
-output_multi <- predict(model_multi, as.matrix(test[, -1]))+1
+test$id <- 1:nrow(test)
+test$bin <- output_bin
+test_sel <- test[, c("subject", "id", "bin", feat_sel)]
+colnames(test_sel)
+# col1: subject, col2: id, col3: binary_class
 ```
 
 ```{r}
-write.table(output_multi, file = "multiclass_6784.txt", row.names = F, col.names = F)
+head(test_sel)
+```
+
+```{r}
+# Make predictions
+output_sel_multi_static <- predict(model_sel_multi_static, as.matrix(test_sel[test_sel$bin==0, -c(1,2,3)]))+4
+output_sel_multi_dynamic <- predict(model_sel_multi_dynamic, as.matrix(test_sel[test_sel$bin==1, -c(1,2,3)]))+1
+```
+
+```{r}
+# Assign results
+test_sel$multi <- 0
+test_sel[test_sel$bin==0,]$multi <- output_sel_multi_static
+test_sel[test_sel$bin==1,]$multi <- output_sel_multi_dynamic
+```
+
+```{r}
+# Compare with previous results
+# which((as.integer(pred2$V1)-as.integer(test_sel$multi))!=0)
+```
+
+
+```{r}
+# write.table(test_sel$multi, file = "multiclass_6784.txt", row.names = F, col.names = F)
+```
+
+### use all features
+```{r}
+# Read in previous predictions
+# pred1 <- read.table("multiclass_95.txt")
+# pred2 <- read.table("multiclass_955.txt")
+```
+
+```{r}
+test$id <- 1:nrow(test)
+test$bin <- output_bin
+colnames(test)
+# col1: subject, col563: id, col564: binary_class
+```
+
+```{r}
+head(test)
+```
+
+```{r}
+# Make predictions
+output_multi_static <- predict(model_multi_static, as.matrix(test[test$bin==0, -c(1,563,564)]))+4
+output_multi_dynamic <- predict(model_multi_dynamic, as.matrix(test[test$bin==1, -c(1,563,564)]))+1
+```
+
+```{r}
+# Assign results
+test$multi <- 0
+test[test$bin==0,]$multi <- output_multi_static
+test[test$bin==1,]$multi <- output_multi_dynamic
+```
+
+```{r}
+# Compare with previous results
+# which((as.integer(pred2$V1)-as.integer(test$multi))!=0)
+```
+
+```{r}
+write.table(test$multi, file = "multiclass_6784.txt", row.names = F, col.names = F)
 ```
 
 
