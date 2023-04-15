@@ -30,4 +30,23 @@ https://github.com/xqwen/bios626/blob/main/README.md
 
 
 ## Built With
-* [![Rstudio][RStudio.com]][Rstudio-url]
+- R
+- RStudio
+
+## Getting Started
+Here are a few tips on how to run the project.
+
+### Prerequsite
+Check your RStudio equipped with following packages:
+- dplyr
+- caret
+- randomForest
+- xgboost
+
+### Data Preparatiomn
+Copy the datafiles ```training_data.txt``` and ```test_data.txt``` to the same address as the ```midterm1.Rmd``` file.
+
+## Usage
+Process the code in ```midterm1.Rmd``` step by step to get results. 
+
+The binary classification result for task 1 would be output as ```binary_6784.txt```, and ```multiclass_6784.txt``` for multiclass classification in task 2.
