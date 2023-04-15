@@ -54,3 +54,8 @@ Check your RStudio equipped with following packages:
 Run the code in ```midterm1.Rmd``` step by step. 
 
 The binary classification result for task 1 would be output as ```binary_6784.txt```, and ```multiclass_6784.txt``` for multiclass classification in task 2.
+
+## Performance
+Through optimization, 100% accuracy for Task 1 and 95.5% for Task 2 have been reached according to the leaderboard,
+- ```binary_6784.txt``` is the result for Task 1.
+- ```multiclass_6784.txt``` is the result for Task 2.
